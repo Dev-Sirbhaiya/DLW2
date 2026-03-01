@@ -1,0 +1,33 @@
+# ============================================================
+# config.yaml — Global configuration for the reconstruction pipeline
+# ============================================================
+
+server:
+  port: 4000
+  upload_dir: uploads
+  output_dir: outputs
+  max_upload_mb: 2000          # max video upload size in MB
+
+video:
+  max_frames_target: 300       # COLMAP frame target (ns-process-data)
+  fps_extraction: 2            # fallback FPS for manual frame extraction
+
+nerfstudio:
+  method: splatfacto
+  max_iterations: 30000        # training steps; reduce to 10000 for quick tests
+  steps_per_save: 2000
+  steps_per_eval_image: 500
+
+export_3d:
+  format: gaussian-splat       # ns-export subcommand
+  output_filename: splat.ply
+
+render_2d:
+  interpolation_steps: 120     # frames in the spiral render
+  fps: 24
+  rendered_outputs:
+    - rgb
+  contact_sheet_cols: 6        # columns in the frame contact sheet PNG
+
+open3d:
+  headless: true               # use offscreen renderer (no display required)

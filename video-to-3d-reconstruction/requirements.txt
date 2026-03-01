@@ -1,0 +1,52 @@
+# ============================================================
+# requirements.txt — Python dependencies
+# Video to 3D/2D Reconstruction (Nerfstudio + Splatfacto)
+# Install AFTER torch (see setup.sh)
+# ============================================================
+
+# ── Core ML / Nerfstudio ─────────────────────────────────────────────────────
+nerfstudio>=1.1.0
+
+# ── Computer Vision ──────────────────────────────────────────────────────────
+opencv-python>=4.9.0
+Pillow>=10.2.0
+
+# ── Numerical Computing ──────────────────────────────────────────────────────
+numpy>=1.26.0
+scipy>=1.12.0
+
+# ── 3D Geometry & Visualization ──────────────────────────────────────────────
+open3d>=0.18.0
+trimesh>=4.2.0
+plyfile>=1.0.3
+
+# ── Plotting & Visualization ─────────────────────────────────────────────────
+matplotlib>=3.8.0
+plotly>=5.19.0
+
+# ── Video / Image I/O ────────────────────────────────────────────────────────
+ffmpeg-python>=0.2.0
+imageio>=2.33.0
+imageio-ffmpeg>=0.4.9
+
+# ── CLI & Progress ───────────────────────────────────────────────────────────
+tqdm>=4.66.0
+rich>=13.7.0
+tyro>=0.7.0
+
+# ── Config ───────────────────────────────────────────────────────────────────
+PyYAML>=6.0.1
+
+# ── COLMAP Python bindings (pycolmap for status parsing) ─────────────────────
+pycolmap>=0.6.0
+
+# ── Tensor utilities used by Nerfstudio internally ───────────────────────────
+einops>=0.7.0
+torchmetrics>=1.2.0
+lpips>=0.1.4
+jaxtyping>=0.2.25
+typeguard>=4.2.1
+
+# ── Camera / Geometry ────────────────────────────────────────────────────────
+rawpy>=0.21.0
+exifread>=3.0.0
