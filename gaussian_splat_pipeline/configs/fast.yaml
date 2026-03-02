@@ -1,0 +1,82 @@
+# =============================================================================
+# Preset: Fast Preview (low quality, fast turnaround ~20-30 min)
+# =============================================================================
+
+pipeline:
+  seed: 42
+  deterministic: false   # Speed over reproducibility
+
+extraction:
+  fps: 2
+  jpeg_quality: 2
+  max_image_size: 1600
+  blur_threshold_ratio: 0.5
+  phash_threshold: 8
+  min_frames: 30
+  max_frames: 200
+
+depth:
+  enabled: false
+  model: "vitb"
+
+masking:
+  enabled: false
+  model: "u2net"
+
+colmap:
+  camera_model: OPENCV
+  single_camera: true
+  matcher: sift
+  sift_max_features: 8192
+  sift_first_octave: 0
+  sift_peak_threshold: 0.006
+  sift_num_octaves: 4
+  sequential_overlap: 10
+  loop_detection: false
+  mapper_ba_global_max_num_iterations: 50
+  mapper_ba_global_max_refinements: 3
+  mapper_ba_local_max_num_iterations: 25
+  mapper_multiple_models: false
+  mapper_tri_min_angle: 2.0
+  mapper_filter_max_reproj_error: 3.0
+  min_registration_rate: 0.40
+  warn_registration_rate: 0.70
+  max_reproj_error_abort: 5.0
+  max_reproj_error_warn: 2.5
+
+training:
+  method: original
+  iterations: 20000
+  densify_until_iter: 12000
+  densification_interval: 200
+  densify_grad_threshold: 0.0002
+  opacity_reset_interval: 3000
+  sh_degree: 1               # Low SH for speed
+  lambda_dssim: 0.2
+  percent_dense: 0.01
+  position_lr_init: 0.00016
+  position_lr_final: 0.0000016
+  scaling_lr: 0.005
+  depth_regularization: false
+  antialiasing: false
+  exposure_compensation: false
+  test_iterations: [7000, 15000, 20000]
+  save_iterations: [20000]
+
+export:
+  gaussian_ply: true
+  dense_pointcloud: false
+  poisson_mesh: false
+  camera_poses_json: true
+
+evaluation:
+  compute_psnr: true
+  compute_ssim: true
+  compute_lpips: false       # Skip LPIPS for speed
+  generate_comparison_grid: true
+  variance_psnr_threshold: 5.0
+
+gpu:
+  devices: "0,1,2,3"
+  num_gpus: 4
+  training_gpu: 0

@@ -1,0 +1,64 @@
+# =============================================================================
+# Gaussian Splatting Pipeline — Pinned Dependencies
+# Python 3.10, PyTorch 2.1.2, CUDA 11.8 or 12.1
+# Install AFTER torch: pip install -r requirements.txt
+# =============================================================================
+
+# ── Core numerical stack (numpy<2.0 for compatibility) ────────────────────────
+numpy==1.26.4
+scipy==1.12.0
+
+# ── Image processing ──────────────────────────────────────────────────────────
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+scikit-image==0.22.0
+imageio==2.33.1
+imageio-ffmpeg==0.4.9
+
+# ── Perceptual hashing (deduplication) ────────────────────────────────────────
+imagehash==4.3.1
+
+# ── Deep learning utilities ───────────────────────────────────────────────────
+einops==0.7.0
+kornia==0.7.2
+timm==0.9.16
+transformers==4.40.2
+
+# ── 3D processing ─────────────────────────────────────────────────────────────
+plyfile==1.0.3
+trimesh==4.1.4
+open3d==0.18.0
+
+# ── Quality metrics ───────────────────────────────────────────────────────────
+lpips==0.1.4
+torchmetrics==1.3.1
+
+# ── Training utilities ────────────────────────────────────────────────────────
+tensorboard==2.16.2
+tensorboardX==2.6.2.2
+
+# ── Nerfstudio ecosystem ──────────────────────────────────────────────────────
+nerfstudio==1.1.4
+gsplat==1.3.0
+
+# ── Visualization ─────────────────────────────────────────────────────────────
+matplotlib==3.8.3
+
+# ── Config / CLI ──────────────────────────────────────────────────────────────
+pyyaml==6.0.1
+tyro==0.7.3
+rich==13.7.1
+tqdm==4.66.2
+
+# ── Background removal (optional, Stage 3) ────────────────────────────────────
+rembg==2.0.56
+onnxruntime-gpu==1.17.3
+
+# ── HuggingFace for model downloads ──────────────────────────────────────────
+huggingface_hub==0.22.2
+
+# ── Misc utilities ────────────────────────────────────────────────────────────
+requests==2.31.0
+packaging==24.0
+setuptools==69.2.0
+wheel==0.43.0

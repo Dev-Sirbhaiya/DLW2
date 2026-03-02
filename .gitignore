@@ -1,0 +1,85 @@
+# =============================================================================
+# Gaussian Splatting Pipeline — .gitignore
+# =============================================================================
+
+# ── Dependencies (installed by setup.sh, NOT committed) ────────────────────
+gaussian_splat_pipeline/deps/
+gaussian_splat_pipeline/deps/**
+
+# ── Large model checkpoints ────────────────────────────────────────────────
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+
+# ── COLMAP vocabulary tree ────────────────────────────────────────────────
+*.bin
+
+# ── Pipeline outputs (generated at runtime) ────────────────────────────────
+gaussian_splat_pipeline/output*/
+output*/
+*/frames_raw/
+*/frames_filtered/
+*/depth_maps/
+*/masks/
+*/colmap/
+*/model/
+*/exports/
+*/logs/
+*/quality_report/
+*/config_snapshot.yaml
+*reconstruction_report.txt
+*.stage*_complete
+
+# ── Python cache ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# ── Conda / Virtual envs ──────────────────────────────────────────────────
+.conda/
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS junk ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── PLY / 3D files (large, generated) ────────────────────────────────────
+*.ply
+*.obj
+*.stl
+
+# ── Images (generated outputs) ────────────────────────────────────────────
+# Keep: nothing generated
+*.npy
+*.npz
+
+# ── TensorBoard ──────────────────────────────────────────────────────────
+runs/
+tensorboard_logs/
+
+# ── Temp files ────────────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.log

@@ -1,0 +1,138 @@
+# =============================================================================
+# Gaussian Splatting Pipeline — Default Configuration
+# Optimized for indoor room reconstruction
+# =============================================================================
+
+pipeline:
+  seed: 42
+  deterministic: true        # Forces CUDNN deterministic mode (slightly slower, fully reproducible)
+
+extraction:
+  fps: 3
+  jpeg_quality: 1            # ffmpeg -q:v value: 1 = maximum quality
+  max_image_size: 0          # 0 = keep original resolution (recommended)
+  blur_threshold_ratio: 0.6  # Discard frames below 60% of median Laplacian variance
+  tenengrad_threshold_ratio: 0.5
+  brightness_low: 0.12       # Min mean brightness (fraction of 255)
+  brightness_high: 0.88      # Max mean brightness
+  overexposed_ratio: 0.80    # Max ratio of saturated pixels before discard
+  underexposed_ratio: 0.80   # Max ratio of dark pixels before discard
+  exposure_std_sigma: 2.0    # Frames > N*std from mean brightness are flagged
+  phash_threshold: 5         # Hamming distance for near-duplicate removal
+  motion_blur_fft_threshold: 0.70   # FFT directionality threshold
+  min_frames: 40             # Hard minimum (abort with warning below this)
+  max_frames: 500            # Warn above this count
+  ideal_min: 80
+  ideal_max: 300
+
+depth:
+  enabled: true
+  model: "vitb"              # vitb = best reconstruction stability per ablation studies
+  max_image_size: 0          # 0 = use original resolution
+
+masking:
+  enabled: false
+  model: "u2net"             # rembg model for background removal
+  output_white_bg: true      # Replace background with white in masked frames
+
+colmap:
+  camera_model: OPENCV       # Handles radial + tangential distortion
+  single_camera: true        # All frames from same video = same intrinsics
+  matcher: superpoint        # sift or superpoint (SuperPoint+LightGlue)
+
+  # SIFT settings (used when matcher=sift)
+  sift_max_features: 16384   # 2x default. More = better matching in textureless areas
+  sift_first_octave: -1      # Extract at double resolution for fine detail
+  sift_peak_threshold: 0.004 # Lower = more keypoints detected
+  sift_num_octaves: 8
+
+  # SuperPoint + LightGlue settings (used when matcher=superpoint)
+  superpoint_max_keypoints: 4096
+  lightglue_depth_confidence: -1   # -1 = disable adaptive stopping for max accuracy
+  lightglue_width_confidence: -1
+
+  # Sequential matching
+  sequential_overlap: 15     # Each frame matched with N neighbors (default: 10)
+  loop_detection: true       # Critical for 360° captures
+  vocab_tree_words: 1000000  # 1M word vocabulary tree
+
+  # Mapper — high-quality settings
+  mapper_ba_global_max_num_iterations: 100  # More iterations = lower variance
+  mapper_ba_global_max_refinements: 5
+  mapper_ba_local_max_num_iterations: 40
+  mapper_multiple_models: false   # Force single reconstruction
+  mapper_tri_min_angle: 1.5       # Min triangulation angle
+  mapper_filter_max_reproj_error: 2.0
+  mapper_fix_existing_images: false
+
+  # Quality thresholds
+  min_registration_rate: 0.50    # Below this → abort
+  warn_registration_rate: 0.80   # Below this → warning
+  max_reproj_error_abort: 3.0    # Pixels — abort if exceeded
+  max_reproj_error_warn: 1.5     # Pixels — warn if exceeded
+
+training:
+  method: original           # original | splatfacto | both
+  iterations: 60000
+
+  # Original 3DGS (Inria) settings
+  densify_until_iter: 25000
+  densification_interval: 100
+  densify_grad_threshold: 0.0002
+  opacity_reset_interval: 5000
+  sh_degree: 3               # Spherical harmonics degree for view-dependent color
+  lambda_dssim: 0.2          # Structural similarity loss weight
+  percent_dense: 0.01
+  position_lr_init: 0.00016
+  position_lr_final: 0.0000016
+  scaling_lr: 0.005
+
+  # Accuracy features (October 2024 3DGS update)
+  depth_regularization: true          # Depth-Anything-V2 geometric supervision
+  antialiasing: true                  # EWA filter from Mip-Splatting
+  exposure_compensation: true         # Per-image affine exposure optimization
+  exposure_lr_init: 0.001
+  exposure_lr_final: 0.0001
+  exposure_lr_delay_steps: 5000
+  exposure_lr_delay_mult: 0.001
+
+  # Splatfacto (Nerfstudio) settings
+  splatfacto_cull_alpha_thresh: 0.005         # Keep more translucent Gaussians
+  splatfacto_continue_cull_post_densification: false  # Preserve fine detail
+  splatfacto_use_scale_regularization: true   # Reduces spikey/long Gaussians
+  splatfacto_sh_degree: 3
+
+  # Checkpointing
+  test_iterations: [7000, 15000, 30000, 45000, 60000]
+  save_iterations: [30000, 60000]
+
+export:
+  gaussian_ply: true            # Export trained Gaussians as .ply
+  dense_pointcloud: true        # COLMAP patch_match_stereo + fusion
+  poisson_mesh: true            # Screened Poisson reconstruction
+  camera_poses_json: true       # Export camera poses
+
+  # COLMAP dense settings (multi-GPU)
+  patch_match_window_radius: 7
+  patch_match_num_iterations: 5
+  patch_match_geom_consistency: true
+  stereo_fusion_min_num_pixels: 5
+  stereo_fusion_max_reproj_error: 2.0
+  poisson_trim: 7
+
+  # Open3D mesh from Gaussian centers (alternative to COLMAP mesh)
+  open3d_poisson_depth: 9
+  open3d_poisson_min_density: 0.01
+
+evaluation:
+  compute_psnr: true
+  compute_ssim: true
+  compute_lpips: true
+  generate_comparison_grid: true
+  comparison_grid_cols: 4       # Columns in comparison image grid
+  variance_psnr_threshold: 3.0  # Flag if PSNR std dev exceeds this
+
+gpu:
+  devices: "0,1,2,3"
+  num_gpus: 4
+  training_gpu: 0              # Training is single-GPU (GPU 0 with most VRAM)

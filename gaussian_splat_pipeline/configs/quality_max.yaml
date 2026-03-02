@@ -1,0 +1,98 @@
+# =============================================================================
+# Preset: Maximum Quality (slow — best possible reconstruction)
+# Training: ~4-6 hours on RTX 4090
+# =============================================================================
+
+pipeline:
+  seed: 42
+  deterministic: true
+
+extraction:
+  fps: 4
+  jpeg_quality: 1
+  max_image_size: 0
+  blur_threshold_ratio: 0.5
+  phash_threshold: 4
+  min_frames: 40
+  max_frames: 600
+
+depth:
+  enabled: true
+  model: "vitb"
+  max_image_size: 0
+
+masking:
+  enabled: false
+  model: "u2net"
+
+colmap:
+  camera_model: OPENCV
+  single_camera: true
+  matcher: superpoint
+  superpoint_max_keypoints: 4096
+  lightglue_depth_confidence: -1
+  lightglue_width_confidence: -1
+  sequential_overlap: 20
+  loop_detection: true
+  mapper_ba_global_max_num_iterations: 150
+  mapper_ba_global_max_refinements: 8
+  mapper_ba_local_max_num_iterations: 50
+  mapper_multiple_models: false
+  mapper_tri_min_angle: 1.0
+  mapper_filter_max_reproj_error: 1.5
+  min_registration_rate: 0.50
+  warn_registration_rate: 0.80
+  max_reproj_error_abort: 3.0
+  max_reproj_error_warn: 1.5
+
+training:
+  method: original
+  iterations: 80000
+  densify_until_iter: 35000
+  densification_interval: 100
+  densify_grad_threshold: 0.00015   # Lower = more detail
+  opacity_reset_interval: 5000
+  sh_degree: 3
+  lambda_dssim: 0.2
+  percent_dense: 0.01
+  position_lr_init: 0.00016
+  position_lr_final: 0.0000016
+  scaling_lr: 0.005
+  depth_regularization: true
+  antialiasing: true
+  exposure_compensation: true
+  exposure_lr_init: 0.001
+  exposure_lr_final: 0.0001
+  exposure_lr_delay_steps: 5000
+  exposure_lr_delay_mult: 0.001
+  splatfacto_cull_alpha_thresh: 0.003
+  splatfacto_continue_cull_post_densification: false
+  splatfacto_use_scale_regularization: true
+  test_iterations: [10000, 20000, 40000, 60000, 80000]
+  save_iterations: [40000, 80000]
+
+export:
+  gaussian_ply: true
+  dense_pointcloud: true
+  poisson_mesh: true
+  camera_poses_json: true
+  patch_match_window_radius: 9
+  patch_match_num_iterations: 8
+  patch_match_geom_consistency: true
+  stereo_fusion_min_num_pixels: 3
+  stereo_fusion_max_reproj_error: 1.5
+  poisson_trim: 8
+  open3d_poisson_depth: 10
+  open3d_poisson_min_density: 0.01
+
+evaluation:
+  compute_psnr: true
+  compute_ssim: true
+  compute_lpips: true
+  generate_comparison_grid: true
+  variance_psnr_threshold: 2.0
+
+gpu:
+  devices: "0,1,2,3"
+  num_gpus: 4
+  training_gpu: 0

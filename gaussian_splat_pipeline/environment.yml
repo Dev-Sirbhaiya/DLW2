@@ -1,0 +1,20 @@
+name: gsplat_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - cmake>=3.27
+  - ninja
+  - ffmpeg
+  - imagemagick
+  - colmap
+  - cudatoolkit=11.8  # Override with cu121 if system CUDA >= 12
+  - pip:
+    # PyTorch (CUDA 11.8 — swap index-url for CUDA 12.1 in setup.sh)
+    - torch==2.1.2
+    - torchvision==0.16.2
+    - torchaudio==2.1.2
+    # All other deps from requirements.txt
+    - -r requirements.txt
