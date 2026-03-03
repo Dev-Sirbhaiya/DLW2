@@ -74,8 +74,8 @@ def run_sift_pipeline(
         "--image_path",                 str(image_dir),
         "--ImageReader.single_camera",  "1" if colmap_cfg.get("single_camera", True) else "0",
         "--ImageReader.camera_model",   colmap_cfg.get("camera_model", "OPENCV"),
-        "--SiftExtraction.use_gpu",     "1",
-        "--SiftExtraction.gpu_index",   gpu_idx,
+        "--FeatureExtraction.use_gpu",  "1",
+        "--FeatureExtraction.gpu_index", gpu_idx,
         "--SiftExtraction.max_image_size", "4096",
         "--SiftExtraction.max_num_features", str(colmap_cfg.get("sift_max_features", 16384)),
         "--SiftExtraction.first_octave",     str(colmap_cfg.get("sift_first_octave", -1)),
@@ -88,8 +88,8 @@ def run_sift_pipeline(
     match_cmd = [
         "colmap", "sequential_matcher",
         "--database_path",                    str(db_path),
-        "--SiftMatching.use_gpu",             "1",
-        "--SiftMatching.gpu_index",           gpu_idx,
+        "--FeatureMatching.use_gpu",          "1",
+        "--FeatureMatching.gpu_index",        gpu_idx,
         "--SequentialMatching.overlap",       str(colmap_cfg.get("sequential_overlap", 15)),
         "--SequentialMatching.loop_detection", "1" if colmap_cfg.get("loop_detection", True) else "0",
     ]
@@ -169,9 +169,7 @@ def run_superpoint_pipeline(
         "ba_global_max_num_iterations": sp_cfg.get("mapper_ba_global_max_num_iterations", 100),
         "ba_global_max_refinements":    sp_cfg.get("mapper_ba_global_max_refinements", 5),
         "ba_local_max_num_iterations":  sp_cfg.get("mapper_ba_local_max_num_iterations", 40),
-        "multiple_models": 0 if not sp_cfg.get("mapper_multiple_models", False) else 1,
-        "tri_min_angle":   sp_cfg.get("mapper_tri_min_angle", 1.5),
-        "filter_max_reproj_error": sp_cfg.get("mapper_filter_max_reproj_error", 2.0),
+        "multiple_models": bool(sp_cfg.get("mapper_multiple_models", False)),
     }
     run_hloc_reconstruction(
         sfm_dir, image_dir, pairs_path, feature_path, match_path,
@@ -204,7 +202,7 @@ def run_mapper(
         "--Mapper.ba_global_max_refinements",    str(colmap_cfg.get("mapper_ba_global_max_refinements", 5)),
         "--Mapper.ba_local_max_num_iterations",  str(colmap_cfg.get("mapper_ba_local_max_num_iterations", 40)),
         "--Mapper.multiple_models",  "0" if not colmap_cfg.get("mapper_multiple_models", False) else "1",
-        "--Mapper.fix_existing_images", "0",
+        "--Mapper.fix_existing_frames", "0",
         "--Mapper.tri_min_angle",    str(colmap_cfg.get("mapper_tri_min_angle", 1.5)),
         "--Mapper.filter_max_reproj_error", str(colmap_cfg.get("mapper_filter_max_reproj_error", 2.0)),
     ], logger)
@@ -332,12 +330,35 @@ def main():
         logger.info("  Using SuperPoint + LightGlue via hloc (recommended)")
         try:
             sfm_dir = run_superpoint_pipeline(colmap_dir, image_dir, cfg, num_gpus, logger)
-            # Find the best model (hloc puts it at sfm_dir/0)
-            sparse_model = sfm_dir / "0"
-            if not sparse_model.exists():
-                # hloc might write directly
-                candidates = sorted(sfm_dir.iterdir()) if sfm_dir.exists() else []
-                sparse_model = candidates[0] if candidates else sfm_dir
+            # hloc writes the best model's .bin files directly into sfm_dir,
+            # but also keeps all models in sfm_dir/models/<idx>/.
+            # Pick the model directory with the most registered images.
+            sparse_model = sfm_dir  # default: hloc's chosen model at sfm_dir root
+            best_count = 0
+
+            # Check sfm_dir root
+            if (sfm_dir / "images.bin").exists():
+                try:
+                    s = parse_reconstruction(str(sfm_dir), total_images)
+                    best_count = s.get("num_registered", 0)
+                except Exception:
+                    pass
+
+            # Check all sub-models in models/ directory
+            models_dir = sfm_dir / "models"
+            if models_dir.is_dir():
+                for sub in sorted(models_dir.iterdir()):
+                    if sub.is_dir() and (sub / "images.bin").exists():
+                        try:
+                            s = parse_reconstruction(str(sub), total_images)
+                            cnt = s.get("num_registered", 0)
+                            if cnt > best_count:
+                                best_count = cnt
+                                sparse_model = sub
+                        except Exception:
+                            continue
+
+            logger.info(f"  Best model has {best_count} registered images at {sparse_model}")
         except Exception as e:
             logger.error(f"SuperPoint+LightGlue failed: {e}")
             logger.warning("Falling back to SIFT...")

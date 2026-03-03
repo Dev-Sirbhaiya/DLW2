@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PLY Viewer</title>
+    <style>
+        #ply-viewer {
+            width: 800px;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h2>Gaussian Splatting PLY Viewer</h2>
+    <div id="ply-viewer"></div>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
+        import { PLYLoader } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/loaders/PLYLoader.js';
+        import { renderPLY } from '/static/viewer_ply.js';
+
+        // Use the symlinked or copied PLY file in static/
+        renderPLY('/static/splat.ply', 'ply-viewer');
+    </script>
+</body>
+</html>

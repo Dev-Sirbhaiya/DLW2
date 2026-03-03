@@ -143,6 +143,8 @@ def train_original_3dgs(
     env = {
         "CUDA_VISIBLE_DEVICES": str(training_gpu),
         "PYTHONHASHSEED": "0",
+        "CC": "gcc-11",
+        "CXX": "g++-11",
     }
 
     logger.info(f"  Training on GPU {training_gpu}...")
@@ -196,14 +198,21 @@ def train_splatfacto(
 
     # Use ns-process-data to convert
     logger.info("  Converting COLMAP data to Nerfstudio format...")
+
+    # COLMAP image_undistorter writes the sparse model directly into
+    # undistorted/sparse/ (no "0" subdirectory), so point there.
+    colmap_sparse = data_dir / "sparse"
+    if not (colmap_sparse / "cameras.bin").exists() and (colmap_sparse / "0").is_dir():
+        colmap_sparse = colmap_sparse / "0"
+
     rc = run_cmd([
         "ns-process-data", "images",
         "--data", str(data_dir / "images"),
         "--output-dir", str(ns_data_dir),
         "--matching-method", "sequential",
         "--skip-colmap",
-        "--colmap-model-path", str(data_dir / "sparse" / "0"),
-    ], logger, env={"CUDA_VISIBLE_DEVICES": str(training_gpu)})
+        "--colmap-model-path", str(colmap_sparse),
+    ], logger, env={"CUDA_VISIBLE_DEVICES": str(training_gpu), "CC": "gcc-11", "CXX": "g++-11"})
 
     if rc != 0:
         # Fallback: point ns-train directly at undistorted dir
@@ -230,6 +239,8 @@ def train_splatfacto(
     env = {
         "CUDA_VISIBLE_DEVICES": str(training_gpu),
         "PYTHONHASHSEED": "0",
+        "CC": "gcc-11",
+        "CXX": "g++-11",
     }
 
     t_start = time.time()

@@ -68,11 +68,17 @@ check("GPU count + info", check_gpus)
 
 # ─── COLMAP ──────────────────────────────────────────────────────────────────
 def check_colmap():
-    r = subprocess.run(["colmap", "--version"], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip())
-    ver = r.stdout.strip() or r.stderr.strip()
-    return ver.split("\n")[0]
+    # COLMAP >= 3.9 uses 'colmap help' or 'colmap version'; '--version' was removed
+    for cmd in [["colmap", "version"], ["colmap", "--version"]]:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            ver = r.stdout.strip() or r.stderr.strip()
+            return ver.split("\n")[0]
+    # last resort: check that binary exists
+    r = subprocess.run(["colmap", "help"], capture_output=True, text=True)
+    if r.returncode == 0:
+        return "COLMAP found (version string unavailable)"
+    raise RuntimeError("COLMAP binary not found or not working")
 
 check("COLMAP", check_colmap)
 

@@ -46,6 +46,11 @@ def shard_list(items: list, num_shards: int) -> List[list]:
     return shards
 
 
+def gpu_index_str(num_gpus: int) -> str:
+    """Returns '0,1,2,3' style string for COLMAP GPU flags."""
+    return ",".join(str(i) for i in range(num_gpus))
+
+
 def set_cuda_visible(devices: str = "0,1,2,3"):
     """Set CUDA_VISIBLE_DEVICES environment variable."""
     os.environ["CUDA_VISIBLE_DEVICES"] = devices

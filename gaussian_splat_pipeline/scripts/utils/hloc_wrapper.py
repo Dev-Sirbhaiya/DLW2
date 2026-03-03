@@ -109,16 +109,16 @@ def run_hloc_reconstruction(
         "ba_global_max_num_iterations": 100,
         "ba_global_max_refinements": 5,
         "ba_local_max_num_iterations": 40,
-        "multiple_models": 0,
-        "tri_min_angle": 1.5,
-        "filter_max_reproj_error": 2.0,
+        "multiple_models": False,
     }
     if mapper_options:
         mapper_opts.update(mapper_options)
 
+    import pycolmap
+    cam_mode = pycolmap.CameraMode.SINGLE if single_camera else pycolmap.CameraMode.AUTO
+
     image_options = {
         "camera_model": camera_model,
-        "single_camera": int(single_camera),
     }
 
     model = reconstruction.main(
@@ -127,6 +127,7 @@ def run_hloc_reconstruction(
         pairs_path,
         feature_path,
         match_path,
+        camera_mode=cam_mode,
         verbose=True,
         image_options=image_options,
         mapper_options=mapper_opts,

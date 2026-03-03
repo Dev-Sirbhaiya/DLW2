@@ -115,6 +115,11 @@ export PYTHONPATH="$SCRIPT_DIR:$SCRIPT_DIR/scripts:$PYTHONPATH"
 export CUDA_VISIBLE_DEVICES="$(seq -s',' 0 $((NUM_GPUS - 1)))"
 export PYTHONHASHSEED=0
 
+# Force GCC 11 for all CUDA JIT compilation (gsplat, etc.)
+# GCC 13 is incompatible with PyTorch 2.1.2 pybind11 headers
+export CC=gcc-11
+export CXX=g++-11
+
 PYTHON="python"
 SCRIPTS="$SCRIPT_DIR/scripts"
 DEPS="$SCRIPT_DIR/deps"

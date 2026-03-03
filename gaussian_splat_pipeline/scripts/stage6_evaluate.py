@@ -51,7 +51,8 @@ def render_original_3dgs(model_dir: Path, deps_dir: Path, training_gpu: int, log
         logger.warning(f"render.py not found at {render_script}")
         return render_dir
 
-    env = {"CUDA_VISIBLE_DEVICES": str(training_gpu), "PYTHONHASHSEED": "0"}
+    env = {"CUDA_VISIBLE_DEVICES": str(training_gpu), "PYTHONHASHSEED": "0",
+           "CC": "gcc-11", "CXX": "g++-11"}
 
     # Find latest checkpoint iteration
     point_clouds = sorted(model_dir.rglob("point_cloud.ply"))

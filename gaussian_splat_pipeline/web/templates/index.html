@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Gaussian Splatting Pipeline</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242833;
+    --border: #2e3345;
+    --text: #e4e6f0;
+    --text-dim: #8b8fa3;
+    --accent: #6c63ff;
+    --accent-glow: rgba(108, 99, 255, 0.25);
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --radius: 12px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Layout ─────────────────────────────────────────────────────── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  header p { color: var(--text-dim); font-size: 1rem; }
+
+  /* ── Cards ──────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .card h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  /* ── Upload Area ────────────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .upload-zone .icon { font-size: 3rem; margin-bottom: 1rem; }
+  .upload-zone p { color: var(--text-dim); }
+  .upload-zone .file-name {
+    color: var(--green);
+    font-weight: 500;
+    margin-top: 0.5rem;
+    display: none;
+  }
+  #fileInput { display: none; }
+
+  /* ── Options Grid ───────────────────────────────────────────────── */
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .option-group label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .option-group select, .option-group input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .option-group select:focus, .option-group input:focus {
+    border-color: var(--accent);
+  }
+
+  /* ── Button ─────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px var(--accent-glow);
+  }
+  .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .btn-cancel {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-cancel:hover { border-color: var(--red); color: var(--red); }
+
+  .actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
+
+  /* ── Progress Section ───────────────────────────────────────────── */
+  #progressSection { display: none; }
+
+  .stage-list { list-style: none; }
+  .stage-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+  }
+  .stage-item:last-child { border-bottom: none; }
+  .stage-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .stage-item.pending .stage-dot { background: var(--surface2); border-color: var(--border); }
+  .stage-item.active .stage-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse 1.5s infinite;
+  }
+  .stage-item.done .stage-dot { background: var(--green); border-color: var(--green); }
+  .stage-item.failed .stage-dot { background: var(--red); border-color: var(--red); }
+  .stage-item.skipped .stage-dot { background: var(--text-dim); border-color: var(--text-dim); }
+  .stage-item .stage-name { flex: 1; }
+  .stage-item.active .stage-name { color: var(--accent); font-weight: 500; }
+  .stage-item.done .stage-name { color: var(--green); }
+  .stage-item .stage-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 4px var(--accent-glow); }
+    50% { box-shadow: 0 0 16px var(--accent-glow); }
+  }
+
+  /* ── Overall Progress Bar ───────────────────────────────────────── */
+  .progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+  .progress-status {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  /* ── Log Console ────────────────────────────────────────────────── */
+  .log-console {
+    background: #0d0f14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--text-dim);
+  }
+  .log-console .log-ok { color: var(--green); }
+  .log-console .log-err { color: var(--red); }
+  .log-console .log-warn { color: var(--yellow); }
+  .log-console .log-stage { color: var(--blue); font-weight: 600; }
+
+  /* ── Results ────────────────────────────────────────────────────── */
+  #resultsSection { display: none; }
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+  .metric-card {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .metric-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
+  }
+
+  .file-list {
+    list-style: none;
+    margin-top: 1rem;
+  }
+  .file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  .file-list li .size { color: var(--text-dim); font-size: 0.8rem; }
+
+  .view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2.5rem;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1.5rem;
+    text-decoration: none;
+  }
+  .view-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--accent-glow); text-decoration: none; }
+
+  /* ── Responsive ─────────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .container { padding: 1rem; }
+    header h1 { font-size: 1.5rem; }
+    .options-grid { grid-template-columns: 1fr; }
+    .upload-zone { padding: 2rem 1rem; }
+  }
+
+  /* ── Toggle log visibility ──────────────────────────────────────── */
+  .log-toggle {
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+  }
+  .log-toggle:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>✦ 3D Gaussian Splatting Pipeline</h1>
+    <p>Upload a video → reconstruct a 3D scene → explore it interactively</p>
+  </header>
+
+  <!-- ═══ Upload Section ═══ -->
+  <div id="uploadSection">
+    <div class="card">
+      <h2>📹 Upload Video</h2>
+      <div class="upload-zone" id="dropZone">
+        <div class="icon">🎬</div>
+        <p><strong>Drop your video here</strong> or click to browse</p>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">MP4, MOV, AVI — up to 10 GB</p>
+        <p class="file-name" id="fileName"></p>
+        <input type="file" id="fileInput" accept="video/*">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Options</h2>
+      <div class="options-grid">
+        <div class="option-group">
+          <label>Config Preset</label>
+          <select id="optConfig">
+            <option value="default">Default</option>
+            <option value="fast">Fast (preview)</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="quality_max">Max Quality</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Frame Rate (FPS)</label>
+          <input type="number" id="optFps" value="3" min="1" max="30">
+        </div>
+        <div class="option-group">
+          <label>Training Method</label>
+          <select id="optMethod">
+            <option value="original" selected>Original 3DGS</option>
+            <option value="splatfacto">Splatfacto</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Background Masking</label>
+          <select id="optMask">
+            <option value="false" selected>Disabled</option>
+            <option value="true">Enabled</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>GPUs to Use</label>
+          <input type="number" id="optGpus" value="4" min="1" max="8">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnStart" disabled>🚀 Start Pipeline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Progress Section ═══ -->
+  <div id="progressSection">
+    <div class="card">
+      <h2>📊 Pipeline Progress</h2>
+      <div class="progress-status">
+        <span id="progressLabel">Starting...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+
+      <ul class="stage-list" id="stageList">
+        {% for s in stages %}
+        <li class="stage-item pending" data-stage="{{ s.id }}">
+          <span class="stage-dot"></span>
+          <span class="stage-name">Stage {{ s.id }}: {{ s.name }}</span>
+          <span class="stage-label">pending</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="log-toggle" id="logToggle">▶ Show Live Logs</div>
+      <div class="log-console" id="logConsole" style="display:none;"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-cancel" id="btnCancel">✕ Cancel</button>
+    </div>
+  </div>
+
+  <!-- ═══ Results Section ═══ -->
+  <div id="resultsSection">
+    <div class="card">
+      <h2>🎉 Reconstruction Complete!</h2>
+      <div class="metrics-grid" id="metricsGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>📦 Output Files</h2>
+      <ul class="file-list" id="fileList"></ul>
+    </div>
+
+    <div style="text-align: center;">
+      <a class="view-btn" id="btnViewer" href="#">🌐 Open 3D Viewer</a>
+    </div>
+
+    <div class="card" style="margin-top: 1.5rem;">
+      <div class="log-toggle" id="logToggleFinal">▶ Show Pipeline Logs</div>
+      <div class="log-console" id="logConsoleFinal" style="display:none;"></div>
+    </div>
+
+    <div class="actions" style="margin-top: 1rem;">
+      <button class="btn btn-primary" onclick="location.reload()">✦ New Reconstruction</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════════════════
+let selectedFile = null;
+let currentJobId = null;
+let eventSource  = null;
+let allLogs      = "";
+
+const dropZone    = document.getElementById("dropZone");
+const fileInput   = document.getElementById("fileInput");
+const fileName    = document.getElementById("fileName");
+const btnStart    = document.getElementById("btnStart");
+const btnCancel   = document.getElementById("btnCancel");
+const logConsole  = document.getElementById("logConsole");
+const logToggle   = document.getElementById("logToggle");
+
+// ═══════════════════════════════════════════════════════════════════
+//  Upload / Drag & Drop
+// ═══════════════════════════════════════════════════════════════════
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
+
+function setFile(file) {
+  selectedFile = file;
+  fileName.textContent = `${file.name} (${(file.size / 1e6).toFixed(1)} MB)`;
+  fileName.style.display = "block";
+  btnStart.disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Start Pipeline
+// ═══════════════════════════════════════════════════════════════════
+btnStart.addEventListener("click", async () => {
+  if (!selectedFile) return;
+  btnStart.disabled = true;
+
+  const formData = new FormData();
+  formData.append("video", selectedFile);
+  formData.append("config", document.getElementById("optConfig").value);
+  formData.append("fps", document.getElementById("optFps").value);
+  formData.append("method", document.getElementById("optMethod").value);
+  formData.append("mask", document.getElementById("optMask").value);
+  formData.append("num_gpus", document.getElementById("optGpus").value);
+
+  try {
+    const res  = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.error) { alert(data.error); btnStart.disabled = false; return; }
+
+    currentJobId = data.job_id;
+    showProgress();
+    startLogStream(currentJobId);
+    pollJob(currentJobId);
+  } catch (err) {
+    alert("Upload failed: " + err.message);
+    btnStart.disabled = false;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  Progress Tracking
+// ═══════════════════════════════════════════════════════════════════
+function showProgress() {
+  document.getElementById("uploadSection").style.display = "none";
+  document.getElementById("progressSection").style.display = "block";
+}
+
+function updateStages(currentStage, status) {
+  document.querySelectorAll(".stage-item").forEach(el => {
+    const s = parseInt(el.dataset.stage);
+    const label = el.querySelector(".stage-label");
+    el.className = "stage-item";
+    if (s < currentStage) {
+      el.classList.add("done");
+      label.textContent = "done";
+    } else if (s === currentStage && status === "running") {
+      el.classList.add("active");
+      label.textContent = "running...";
+    } else if (status === "completed" && s <= currentStage) {
+      el.classList.add("done");
+      label.textContent = "done";
+    } else if (status === "failed" && s === currentStage) {
+      el.classList.add("failed");
+      label.textContent = "failed";
+    } else {
+      el.classList.add("pending");
+      label.textContent = "pending";
+    }
+  });
+  const pct = status === "completed" ? 100 : Math.round((currentStage / 8) * 100);
+  document.getElementById("progressBar").style.width = pct + "%";
+  document.getElementById("progressPct").textContent = pct + "%";
+  document.getElementById("progressLabel").textContent =
+    status === "completed" ? "Complete!" :
+    status === "failed" ? "Failed" :
+    `Stage ${currentStage}: ${getStage(currentStage)}`;
+}
+
+function getStage(id) {
+  const stages = {{ stages | tojson }};
+  const s = stages.find(s => s.id === id);
+  return s ? s.name : "...";
+}
+
+function pollJob(jobId) {
+  const interval = setInterval(async () => {
+    try {
+      const res  = await fetch(`/api/jobs/${jobId}`);
+      const data = await res.json();
+      updateStages(data.stage, data.status);
+
+      if (data.status === "completed") {
+        clearInterval(interval);
+        showResults(jobId, data.metrics);
+      } else if (data.status === "failed" || data.status === "cancelled") {
+        clearInterval(interval);
+      }
+    } catch (e) { /* retry */ }
+  }, 1500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Log Streaming (SSE)
+// ═══════════════════════════════════════════════════════════════════
+function startLogStream(jobId) {
+  eventSource = new EventSource(`/api/jobs/${jobId}/logs`);
+  eventSource.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === "log") {
+      appendLog(data.message);
+    } else if (data.type === "done") {
+      eventSource.close();
+    }
+  };
+  eventSource.onerror = () => { eventSource.close(); };
+}
+
+function appendLog(msg) {
+  allLogs += msg + "\n";
+  let cls = "";
+  if (/\[  OK  \]|complete|success/i.test(msg)) cls = "log-ok";
+  else if (/error|fail/i.test(msg)) cls = "log-err";
+  else if (/warn/i.test(msg)) cls = "log-warn";
+  else if (/stage \d|═══/i.test(msg)) cls = "log-stage";
+  const span = document.createElement("span");
+  span.className = cls;
+  span.textContent = msg + "\n";
+  logConsole.appendChild(span);
+  logConsole.scrollTop = logConsole.scrollHeight;
+}
+
+logToggle.addEventListener("click", () => {
+  const vis = logConsole.style.display === "none";
+  logConsole.style.display = vis ? "block" : "none";
+  logToggle.textContent = (vis ? "▼ Hide" : "▶ Show") + " Live Logs";
+});
+
+document.getElementById("logToggleFinal").addEventListener("click", () => {
+  const el = document.getElementById("logConsoleFinal");
+  const vis = el.style.display === "none";
+  el.style.display = vis ? "block" : "none";
+  document.getElementById("logToggleFinal").textContent = (vis ? "▼ Hide" : "▶ Show") + " Pipeline Logs";
+  if (vis) el.innerHTML = logConsole.innerHTML;
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  Cancel
+// ═══════════════════════════════════════════════════════════════════
+btnCancel.addEventListener("click", async () => {
+  if (!currentJobId) return;
+  if (!confirm("Cancel the running pipeline?")) return;
+  await fetch(`/api/jobs/${currentJobId}/cancel`, { method: "POST" });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  Results
+// ═══════════════════════════════════════════════════════════════════
+async function showResults(jobId, metrics) {
+  document.getElementById("progressSection").style.display = "none";
+  document.getElementById("resultsSection").style.display = "block";
+
+  // Metrics
+  const grid = document.getElementById("metricsGrid");
+  grid.innerHTML = "";
+  if (metrics) {
+    const items = [
+      { label: "PSNR", value: (metrics.psnr_mean || 0).toFixed(2) + " dB" },
+      { label: "SSIM", value: (metrics.ssim_mean || 0).toFixed(4) },
+      { label: "LPIPS", value: (metrics.lpips_mean || 0).toFixed(4) },
+      { label: "Gaussians", value: (metrics.num_gaussians || 0).toLocaleString() },
+    ];
+    items.forEach(i => {
+      grid.innerHTML += `<div class="metric-card"><div class="metric-value">${i.value}</div><div class="metric-label">${i.label}</div></div>`;
+    });
+  } else {
+    grid.innerHTML = '<p style="color:var(--text-dim)">Metrics not available</p>';
+  }
+
+  // Files
+  try {
+    const res   = await fetch(`/api/jobs/${jobId}/exports`);
+    const files = await res.json();
+    const list  = document.getElementById("fileList");
+    list.innerHTML = "";
+    files.forEach(f => {
+      list.innerHTML += `<li><a href="${f.url}" download>${f.name}</a><span class="size">${f.size_mb} MB</span></li>`;
+    });
+  } catch (e) {}
+
+  // Viewer link
+  document.getElementById("btnViewer").href = `/viewer/${jobId}`;
+}
+</script>
+</body>
+</html>
